@@ -49,12 +49,14 @@ def compute_metrics(eval_pred):
 if __name__ == "__main__":
 
     # simuliamo logits e labels per verificare che la funzione funzioni
-    logits_finti = np.array([
-        [0.1, 0.9],   # predice classe 1 — corretto se label=1
-        [0.8, 0.2],   # predice classe 0 — corretto se label=0
-        [0.3, 0.7],   # predice classe 1 — sbagliato se label=0
-        [0.6, 0.4],   # predice classe 0 — corretto se label=0
-    ])
+    logits_finti = np.array(
+        [
+            [0.1, 0.9],  # predice classe 1 — corretto se label=1
+            [0.8, 0.2],  # predice classe 0 — corretto se label=0
+            [0.3, 0.7],  # predice classe 1 — sbagliato se label=0
+            [0.6, 0.4],  # predice classe 0 — corretto se label=0
+        ]
+    )
     labels_finti = np.array([1, 0, 0, 0])
 
     risultato = compute_metrics((logits_finti, labels_finti))

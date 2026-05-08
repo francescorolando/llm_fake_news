@@ -14,6 +14,7 @@ from config import (
     MAX_EVAL_SAMPLES,
 )
 
+
 def load_data():
     # carichiamo il dataset usando Hugging Face Datasets
     dataset = load_dataset(DATASET, DATASET_CONFIG)
@@ -41,13 +42,19 @@ def load_data():
     tokenized_dataset = tokenized_dataset.rename_column("label", "labels")
 
     # campionamento per velocizzare il training
-    tokenized_dataset["train"] = tokenized_dataset["train"].select(range(MAX_TRAIN_SAMPLES))
-    tokenized_dataset["validation"] = tokenized_dataset["validation"].select(range(MAX_EVAL_SAMPLES))
+    tokenized_dataset["train"] = tokenized_dataset["train"].select(
+        range(MAX_TRAIN_SAMPLES)
+    )
+    tokenized_dataset["validation"] = tokenized_dataset["validation"].select(
+        range(MAX_EVAL_SAMPLES)
+    )
 
     return tokenized_dataset, tokenizer
 
 
 if __name__ == "__main__":
     tokenized_dataset, tokenizer = load_data()
-    print(tokenized_dataset["train"][:5])  # stampiamo i primi 5 esempi tokenizzati per verifica
+    print(
+        tokenized_dataset["train"][:5]
+    )  # stampiamo i primi 5 esempi tokenizzati per verifica
     print(tokenizer)  # stampiamo il tokenizer per verifica

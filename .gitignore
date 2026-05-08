@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
 .venv/
+.vscode/
 .DS_Store
 fine_tuning/results/

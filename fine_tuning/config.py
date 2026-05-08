@@ -55,9 +55,10 @@ CONFIGS = [
 
 
 # ── output ────────────────────────────────────────────────────────────
-RESULTS_DIR = "results"
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 OUTPUT_DIR = os.path.join(
+    os.path.dirname(__file__),
     "checkpoints",
     f"{MODEL}_lr{LEARNING_RATE}_bs{TRAIN_BATCH_SIZE}_ep{EPOCHS}_{timestamp}",
 )

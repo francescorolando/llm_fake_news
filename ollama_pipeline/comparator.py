@@ -3,18 +3,32 @@ comparatore: analizza i risultati della pipeline
 
 uso:
     python comparator.py           → analizza outputs_run1.json
+    python comparator.py 2         → analizza outputs_run2.json
     python comparator.py --runs 3  → analizza run1, run2, run3 e fa la media
+    python comparator.py --runs    → analizza tutte le run disponibili
 """
 
 import json
 import os
 import sys
-import glob
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 
 
 # ─── caricamento ──────────────────────────────────────────────────────────────
+
+
+def count_runs() -> int:
+    """conta i file outputs_run*.json disponibili"""
+    if not os.path.exists(RESULTS_DIR):
+        return 0
+    return len(
+        [
+            f
+            for f in os.listdir(RESULTS_DIR)
+            if f.startswith("outputs_run") and f.endswith(".json")
+        ]
+    )
 
 
 def load_run(run_id: int) -> list:
@@ -62,7 +76,6 @@ def compute_multi_metrics(runs: list[list], strategy: str) -> dict:
     mean = lambda xs: sum(xs) / len(xs)
     stdev = lambda xs: (sum((x - mean(xs)) ** 2 for x in xs) / len(xs)) ** 0.5
 
-    # stabilità per sample: quante volte classificato corretto su N run
     n_samples = len(runs[0])
     stability = []
     for i in range(n_samples):
@@ -161,56 +174,52 @@ def print_disagreements(results: list):
 # ─── entrypoint ───────────────────────────────────────────────────────────────
 
 
-def compare_single(run_id: int = 1):
-    results = load_run(run_id)
-    zs = compute_metrics(results, "zero_shot")
-    fs = compute_metrics(results, "few_shot")
-
-    print_metrics("zero-shot", zs)
-    print_metrics("few-shot", fs)
-
-    delta = fs["accuracy"] - zs["accuracy"]
-    direction = "↑" if delta > 0 else ("↓" if delta < 0 else "=")
-    print(f"\n  delta (few-shot - zero-shot): {delta:+.2f} {direction}")
-
-    print("\n\nerrori zero-shot:")
-    print_errors(results, "zero_shot")
-
-    print("\nerrori few-shot:")
-    print_errors(results, "few_shot")
-
-    print_disagreements(results)
-
-
-def compare_multi(n_runs: int):
-    runs = load_runs(n_runs)
-    zs = compute_multi_metrics(runs, "zero_shot")
-    fs = compute_multi_metrics(runs, "few_shot")
-
-    print_multi_metrics("zero-shot", zs)
-    print_multi_metrics("few-shot", fs)
-
-    delta = fs["mean_accuracy"] - zs["mean_accuracy"]
-    direction = "↑" if delta > 0 else ("↓" if delta < 0 else "=")
-    print(f"\n  delta medio (few-shot - zero-shot): {delta:+.2f} {direction}")
-
-    print_stability(zs, fs)
-
-    # dettaglio errori sull'ultima run
-    print(f"\n\ndettaglio errori — run {n_runs}:")
-    print("\nerrori zero-shot:")
-    print_errors(runs[-1], "zero_shot")
-    print("\nerrori few-shot:")
-    print_errors(runs[-1], "few_shot")
-
-    print_disagreements(runs[-1])
-
-
 if __name__ == "__main__":
+    available = count_runs()
+
+    if available == 0:
+        print("nessuna run disponibile in results/")
+        sys.exit(1)
+
     if "--runs" in sys.argv:
         idx = sys.argv.index("--runs")
-        n = int(sys.argv[idx + 1])
-        compare_multi(n)
+        # se c'è un numero dopo --runs lo usa, altrimenti prende tutte le run disponibili
+        if idx + 1 < len(sys.argv) and sys.argv[idx + 1].isdigit():
+            n = min(int(sys.argv[idx + 1]), available)
+        else:
+            n = available
+        print(f"analisi di {n} run (disponibili: {available})")
+        runs = load_runs(n)
+        zs = compute_multi_metrics(runs, "zero_shot")
+        fs = compute_multi_metrics(runs, "few_shot")
+        print_multi_metrics("zero-shot", zs)
+        print_multi_metrics("few-shot", fs)
+        delta = fs["mean_accuracy"] - zs["mean_accuracy"]
+        direction = "↑" if delta > 0 else ("↓" if delta < 0 else "=")
+        print(f"\n  delta medio (few-shot - zero-shot): {delta:+.2f} {direction}")
+        print_stability(zs, fs)
+        print(f"\n\ndettaglio errori — run {n}:")
+        print("\nerrori zero-shot:")
+        print_errors(runs[-1], "zero_shot")
+        print("\nerrori few-shot:")
+        print_errors(runs[-1], "few_shot")
+        print_disagreements(runs[-1])
     else:
         run_id = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-        compare_single(run_id)
+        if run_id > available:
+            print(f"run {run_id} non disponibile (disponibili: {available})")
+            sys.exit(1)
+        print(f"analisi run {run_id}")
+        results = load_run(run_id)
+        zs = compute_metrics(results, "zero_shot")
+        fs = compute_metrics(results, "few_shot")
+        print_metrics("zero-shot", zs)
+        print_metrics("few-shot", fs)
+        delta = fs["accuracy"] - zs["accuracy"]
+        direction = "↑" if delta > 0 else ("↓" if delta < 0 else "=")
+        print(f"\n  delta (few-shot - zero-shot): {delta:+.2f} {direction}")
+        print("\n\nerrori zero-shot:")
+        print_errors(results, "zero_shot")
+        print("\nerrori few-shot:")
+        print_errors(results, "few_shot")
+        print_disagreements(results)

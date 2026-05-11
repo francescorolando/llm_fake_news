@@ -3,8 +3,8 @@ pipeline principale: carica i sample, interroga ollama con
 zero-shot e few-shot, salva i risultati
 
 uso:
-    python pipeline.py        → salva in results/outputs_run1.json
-    python pipeline.py 2      → salva in results/outputs_run2.json
+    python pipeline.py        → salva nel prossimo run disponibile
+    python pipeline.py 2      → salva in results/outputs_run2.json (forzato)
 """
 
 import json
@@ -19,6 +19,18 @@ MODEL = "gemma2:2b"
 
 SAMPLES_PATH = os.path.join(os.path.dirname(__file__), "data", "samples.json")
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
+
+
+def next_run_id() -> int:
+    """trova il prossimo run_id disponibile contando i file esistenti"""
+    if not os.path.exists(RESULTS_DIR):
+        return 1
+    existing = [
+        f
+        for f in os.listdir(RESULTS_DIR)
+        if f.startswith("outputs_run") and f.endswith(".json")
+    ]
+    return len(existing) + 1
 
 
 def query_ollama(prompt: str, model: str = MODEL) -> str:
@@ -41,7 +53,7 @@ def parse_label(text: str) -> str:
     return "UNKNOWN"
 
 
-def run_pipeline(run_id: int = 1):
+def run_pipeline(run_id: int):
     output_path = os.path.join(RESULTS_DIR, f"outputs_run{run_id}.json")
 
     with open(SAMPLES_PATH, "r", encoding="utf-8") as f:
@@ -90,5 +102,6 @@ def run_pipeline(run_id: int = 1):
 
 
 if __name__ == "__main__":
-    run_id = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    run_id = int(sys.argv[1]) if len(sys.argv) > 1 else next_run_id()
+    print(f"run {run_id}")
     run_pipeline(run_id)

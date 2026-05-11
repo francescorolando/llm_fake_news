@@ -98,6 +98,19 @@ st.markdown(
     padding: 1rem 1.2rem;
     margin: 0.8rem 0;
 }
+
+/* Pulsante Classifica: testo bianco e sfondo rosso, selettore robusto */
+.stButton > button:first-child {
+    color: #fff !important;
+    background-color: #e63946 !important;
+    border: none !important;
+    font-weight: 700;
+}
+.stButton > button:first-child:hover, .stButton > button:first-child:focus {
+    color: #fff !important;
+    background-color: #b71c1c !important;
+    border: none !important;
+}
 </style>
 """,
     unsafe_allow_html=True,

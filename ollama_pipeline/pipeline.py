@@ -14,15 +14,19 @@ import requests
 
 from prompts import zero_shot_prompt, few_shot_prompt
 
+# endpoint locale di ollama per le richieste di generazione
 OLLAMA_URL = "http://localhost:11434/api/generate"
+# modello utilizzato per la classificazione
 MODEL = "gemma2:2b"
 
+# percorso dei dati di input contenenti i sample da classificare
 SAMPLES_PATH = os.path.join(os.path.dirname(__file__), "data", "samples.json")
+# cartella dove salvare i risultati delle run
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 
 
 def next_run_id() -> int:
-    """trova il prossimo run_id disponibile contando i file esistenti"""
+    """trova il prossimo run_id disponibile contando i file esistenti di output"""
     if not os.path.exists(RESULTS_DIR):
         return 1
     existing = [
@@ -34,6 +38,8 @@ def next_run_id() -> int:
 
 
 def query_ollama(prompt: str, model: str = MODEL) -> str:
+    """invia il prompt al modello ollama e recupera la risposta"""
+    # richiesta POST all'API di ollama con stream disabilitato per risposta completa
     response = requests.post(
         OLLAMA_URL,
         json={"model": model, "prompt": prompt, "stream": False},
@@ -45,37 +51,46 @@ def query_ollama(prompt: str, model: str = MODEL) -> str:
 
 def parse_label(text: str) -> str:
     """normalizza l'output del modello — ollama non risponde sempre con una parola sola"""
+    # converte in maiuscolo e estrae l'etichetta dalla risposta
     upper = text.strip().upper()
     if "FAKE" in upper:
         return "FAKE"
     if "REAL" in upper:
         return "REAL"
+    # se non riconosce l'etichetta la marca come sconosciuta
     return "UNKNOWN"
 
 
 def run_pipeline(run_id: int):
+    """esegue la pipeline di classificazione per una run specifica"""
     output_path = os.path.join(RESULTS_DIR, f"outputs_run{run_id}.json")
 
+    # carica i sample dal file di input
     with open(SAMPLES_PATH, "r", encoding="utf-8") as f:
         samples = json.load(f)
 
+    # crea la cartella di output se non esiste
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     results = []
+    # elabora ogni sample con entrambe le strategie
     for i, sample in enumerate(samples):
         text = sample["text"]
         ground_truth = sample["label_str"]
 
         print(f"[{i+1}/{len(samples)}] ground truth: {ground_truth}")
 
+        # ottiene le risposte dal modello per zero-shot e few-shot
         zs_raw = query_ollama(zero_shot_prompt(text))
         fs_raw = query_ollama(few_shot_prompt(text))
 
+        # normalizza le risposte in etichette standardizzate
         zs_label = parse_label(zs_raw)
         fs_label = parse_label(fs_raw)
 
         print(f"  zero-shot → {zs_label}  |  few-shot → {fs_label}")
 
+        # salva il risultato con metadati e correttezza per entrambe le strategie
         results.append(
             {
                 "id": i,
@@ -94,6 +109,7 @@ def run_pipeline(run_id: int):
             }
         )
 
+    # serializza i risultati in JSON
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 

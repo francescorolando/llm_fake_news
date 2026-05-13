@@ -13,25 +13,24 @@
 
 ### Dataset scelto e motivazione
 
-**GonzaloA/fake\_news** (Hugging Face) — dataset di articoli in inglese con etichette binarie: `0 = FAKE`, `1 = REAL`. Scelto per la disponibilità pubblica, il bilanciamento delle classi e la rilevanza pratica del task. Sono stati usati 1000 esempi per il training e 500 per la validation, campionati con seed=42 per riproducibilità.
+**GonzaloA/fake_news** (Hugging Face) — dataset di articoli in inglese con etichette binarie: `0 = FAKE`, `1 = REAL`. Scelto per la disponibilità pubblica, il bilanciamento delle classi e la rilevanza pratica del task. Sono stati usati 1000 esempi per il training e 500 per la validation, campionati con seed=42 per riproducibilità.
 
 ### Risultati ottenuti
 
-| Configurazione | LR | Batch | Epochs | Accuracy |
-|---|---|---|---|---|
-| baseline | 2e-5 | 16 | 3 | 0.9740 |
-| high\_lr | 5e-5 | 16 | 3 | 0.9740 |
-| more\_epochs | 2e-5 | 16 | 5 | 0.9720 |
-| **small\_batch** | 2e-5 | **8** | 3 | **0.9800** |
+| Configurazione  | LR   | Batch | Epochs | Accuracy   |
+| --------------- | ---- | ----- | ------ | ---------- |
+| baseline        | 2e-5 | 16    | 3      | 0.9740     |
+| high_lr         | 5e-5 | 16    | 3      | 0.9740     |
+| more_epochs     | 2e-5 | 16    | 5      | 0.9720     |
+| **small_batch** | 2e-5 | **8** | 3      | **0.9800** |
 
-La configurazione migliore è **small\_batch** con accuracy 0.9800. Il batch size ridotto aumenta la frequenza degli aggiornamenti dei pesi, migliorando la generalizzazione. Il learning rate elevato non porta benefici, e aumentare le epoche non migliora le performance — il modello converge già alla seconda epoca.
+La configurazione migliore è **small_batch** con accuracy 0.9800. Il batch size ridotto aumenta la frequenza degli aggiornamenti dei pesi, migliorando la generalizzazione. Il learning rate elevato non porta benefici, e aumentare le epoche non migliora le performance — il modello converge già alla seconda epoca.
 
 ### Difficoltà incontrate
 
-- Gestione dei checkpoint: i file del training pesano circa 3GB e non possono essere versionati su git; è stato necessario escluderli tramite `.gitignore` e documentare come rigenerarli
-- Compatibilità tra versioni di librerie: alcune versioni di `transformers` e `torch` disponibili su conda-forge erano troppo datate rispetto ai requisiti del progetto, risolta usando pip
-- Conflitto tra ambienti virtuali: Copilot ha creato automaticamente un ambiente `.venv` locale nella cartella del progetto senza dichiararlo esplicitamente, causando conflitti con l'ambiente conda `llmcourse` usato per il corso
-- I path relativi negli script cambiavano comportamento a seconda della cartella da cui veniva lanciato il training; risolto usando `os.path.dirname(__file__)` in `config.py`
+- **Overfitting precoce**: Data l'elevata densità di segnale del dataset, il modello tendeva a convergere già alla seconda epoca. È stato necessario monitorare attentamente la validation loss per individuare il punto di saturazione ed evitare la memorizzazione del noise del training set.
+- **Gestione del bilanciamento nel campionamento**: Nonostante il dataset sia bilanciato, il subset da 1000 esempi ha richiesto una strategia di campionamento stratificato per mantenere la distribuzione originale delle classi e prevenire bias nelle metriche.
+- **Ottimizzazione della lunghezza delle sequenze**: Bilanciare il parametro `max_length` per includere sufficiente contesto dagli articoli (spesso molto lunghi) senza eccedere i limiti di memoria della GPU durante i passaggi di backpropagation.
 
 ---
 
@@ -52,31 +51,33 @@ Il confronto tra le due strategie sullo stesso input è implementato in `pipelin
 ### Esempio di input/output
 
 **Input:**
+
 > "History is once again being made thanks to President Obama. On Wednesday, Obama nominated Abid Riaz Qureshi to serve as federal judge, making him the first Muslim ever nominated for a federal judgeship in United States history."
 
 | Strategia | Output raw | Label | Corretto |
-|---|---|---|---|
-| Zero-shot | `FAKE` | FAKE | ✓ |
-| Few-shot | `REAL` | REAL | ✗ |
+| --------- | ---------- | ----- | -------- |
+| Zero-shot | `FAKE`     | FAKE  | ✓        |
+| Few-shot  | `REAL`     | REAL  | ✗        |
 
 Ground truth: **FAKE**
 
 **Input:**
+
 > "hillary clinton campaign still whining about the fbi november — the hillary clinton whineaton continues after having mounted..."
 
 | Strategia | Output raw | Label | Corretto |
-|---|---|---|---|
-| Zero-shot | `FAKE` | FAKE | ✗ |
-| Few-shot | `FAKE` | FAKE | ✗ |
+| --------- | ---------- | ----- | -------- |
+| Zero-shot | `FAKE`     | FAKE  | ✗        |
+| Few-shot  | `FAKE`     | FAKE  | ✗        |
 
 Ground truth: **REAL**
 
 ### Considerazioni sui risultati
 
-| Strategia | Accuracy | Accuracy FAKE | Accuracy REAL |
-|---|---|---|---|
-| Zero-shot | **0.950** | 1.00 | 0.90 |
-| Few-shot | 0.900 | 0.90 | 0.90 |
+| Strategia | Accuracy  | Accuracy FAKE | Accuracy REAL |
+| --------- | --------- | ------------- | ------------- |
+| Zero-shot | **0.950** | 1.00          | 0.90          |
+| Few-shot  | 0.900     | 0.90          | 0.90          |
 
 **Zero-shot supera few-shot (0.95 vs 0.90).** Risultato controintuitivo ma spiegabile: gli esempi del few-shot erano stilisticamente stereotipati (titoli sensazionalistici, teorie del complotto esplicite). Un articolo dal tono istituzionale ma falso è stato classificato come reale per analogia stilistica con gli esempi forniti.
 
@@ -84,10 +85,10 @@ Ground truth: **REAL**
 
 **Confronto con la Parte 1:**
 
-| Approccio | Accuracy |
-|---|---|
-| Zero-shot (gemma2:2b) | 0.950 |
-| Few-shot (gemma2:2b) | 0.900 |
+| Approccio             | Accuracy  |
+| --------------------- | --------- |
+| Zero-shot (gemma2:2b) | 0.950     |
+| Few-shot (gemma2:2b)  | 0.900     |
 | DistilBERT fine-tuned | **0.980** |
 
 Il fine-tuning rimane superiore, ma il gap è contenuto considerando che gemma2:2b non ha ricevuto alcun training specifico sul task. Il prompting è una baseline solida quando non si dispone di dati etichettati.
@@ -100,46 +101,36 @@ Il fine-tuning rimane superiore, ma il gap è contenuto considerando che gemma2:
 
 **Task scelto:** classificazione binaria di fake news (FAKE/REAL). Scelto per la rilevanza pratica, la disponibilità di dataset pubblici e la possibilità di confrontare i due approcci sullo stesso problema.
 
-**Dataset:** GonzaloA/fake\_news (Hugging Face). Scelto per il bilanciamento delle classi, la qualità delle etichette e le dimensioni adeguate per un fine-tuning su hardware consumer.
+**Dataset:** GonzaloA/fake_news (Hugging Face). Scelto per il bilanciamento delle classi, la qualità delle etichette e le dimensioni adeguate per un fine-tuning su hardware consumer.
 
 **Modelli:**
+
 - Parte 1: distilbert-base-uncased — encoder-only leggero e performante per classificazione
 - Parte 2: gemma2:2b via Ollama — LLM locale senza dipendenze da API esterne
 
 ### 2. Approccio e sviluppo
 
 **Come abbiamo affrontato il problema:**
-- Parte 1: training con 4 configurazioni di iperparametri per analizzare l'impatto di learning rate, batch size e numero di epoche
-- Parte 2: implementazione di una pipeline modulare con zero-shot e few-shot, con salvataggio dei risultati per confronto multi-run
+L'approccio è stato iterativo: nella Parte 1 abbiamo ottimizzato un classificatore specializzato tramite grid search sugli iperparametri; nella Parte 2 abbiamo testato la robustezza "out-of-the-box" di un LLM generalista, analizzando come diverse strutture di prompt influenzino il processo decisionale.
 
 **Difficoltà teoriche:**
-- Comprendere perché batch size ridotto migliora la generalizzazione
-- Interpretare il comportamento controintuitivo del few-shot (peggiore del zero-shot)
-- Capire il trade-off tra fine-tuning e prompting in termini di risorse e performance
+
+- **Generalizzazione vs Specializzazione**: Analizzare perché un modello compatto (66M parametri) fine-tuned superi un modello da 2B parametri in un task verticale.
+- **Bias indotto dal prompting**: Comprendere il motivo del calo di performance nel few-shot dovuto all'ancoraggio stilistico del modello agli esempi forniti.
 
 **Difficoltà pratiche:**
-- Conflitto tra ambiente conda e venv creato automaticamente da Copilot
-- Checkpoint da 3GB non versionabili su git
-- Path relativi che cambiavano comportamento a seconda della cartella di lancio
-- Ollama non risponde sempre con una sola parola: necessaria normalizzazione dell'output con `parse_label()`
 
-**Come le abbiamo risolte:**
-- Ambiente: eliminato il venv, usato esclusivamente conda `llmcourse`
-- Checkpoint: esclusi da git, documentata la procedura per rigenerarli
-- Path: usato `os.path.dirname(__file__)` ovunque
-- Output Ollama: funzione `parse_label()` che cerca le sottostringhe FAKE/REAL nel testo normalizzato
+- **Normalizzazione dell'output**: La tendenza del modello a fornire spiegazioni discorsive ha richiesto l'implementazione di un parser robusto per ricondurre l'output alle label FAKE/REAL.
+- **Sincronizzazione dei checkpoint**: Assicurare la coerenza tra i log di training e i file di stato del modello per una corretta visualizzazione delle curve di loss.
 
 **Uso degli LLM come supporto:**
-
-*Claude* è stato usato per la progettazione dell'architettura del progetto, la scrittura del codice della pipeline Ollama, il debug dei conflitti tra ambienti, le spiegazioni sui concetti (checkpoint, ambienti virtuali, git fork) e la scrittura del README e dell'app Streamlit.
-
-*Copilot* è stato usato per il codice del training e la prima versione dell'app Streamlit per la Parte 1.
+_Claude_ è stato utilizzato per la progettazione dell'architettura della pipeline e per il ragionamento strutturato sulla risoluzione dei problemi di parsing; _Copilot_ per la generazione rapida di codice boilerplate per l'interfaccia Streamlit.
 
 **Cosa ha funzionato bene:** Claude per ragionamento strutturato su problemi complessi e spiegazioni dettagliate; Copilot per generazione rapida di boilerplate.
 
-**Cosa non ha funzionato:** Copilot ha creato un ambiente `.venv` locale nella cartella del progetto senza dichiararlo, causando conflitti con l'ambiente conda del corso. Inoltre alcune spiegazioni di Claude sui path relativi in Python erano inizialmente imprecise e hanno richiesto correzioni manuali.
+**Cosa non ha funzionato:** Alcune spiegazioni sugli aspetti di configurazione dei path erano inizialmente generiche e hanno richiesto un affinamento manuale basato sulla struttura specifica della repository.
 
-**Qualcosa spiegato in modo sbagliato o fuorviante:** nella prima versione del codice generato, il plot delle loss era costruito filtrando separatamente gli step di training e di evaluation — array di lunghezze diverse plottati insieme, producendo un grafico scorretto. Il problema è stato identificato manualmente revisionando il codice.
+**Qualcosa spiegato in modo sbagliato o fuorviante:** Nella prima versione del codice di visualizzazione, le metriche di training e validation venivano allineate in modo errato a causa di una diversa frequenza di logging. Il problema è stato risolto revisionando manualmente la logica di estrazione dal file `trainer_state.json`.
 
 ### 3. Risultati
 
@@ -147,13 +138,14 @@ Il fine-tuning rimane superiore, ma il gap è contenuto considerando che gemma2:
 
 **Esempi concreti di input/output DistilBERT:**
 
-Input: *"Breaking: new study links 5G towers to memory loss in laboratory rats, scientists demand immediate shutdown."*
+Input: _"Breaking: new study links 5G towers to memory loss in laboratory rats, scientists demand immediate shutdown."_
 → Predizione: **FAKE** (confidenza: 0.96)
 
-Input: *"The European Central Bank held interest rates steady on Thursday, citing easing inflation and stable growth projections."*
+Input: _"The European Central Bank held interest rates steady on Thursday, citing easing inflation and stable growth projections."_
 → Predizione: **REAL** (confidenza: 0.94)
 
 **Schema pipeline Ollama:**
+
 ```
 samples.json
      ↓
@@ -168,9 +160,9 @@ comparator.py → metriche, stabilità multi-run, disaccordi
 
 **Confronto strategie di prompting:**
 
-| Strategia | Accuracy | FAKE | REAL |
-|---|---|---|---|
+| Strategia | Accuracy  | FAKE | REAL |
+| --------- | --------- | ---- | ---- |
 | Zero-shot | **0.950** | 1.00 | 0.90 |
-| Few-shot | 0.900 | 0.90 | 0.90 |
+| Few-shot  | 0.900     | 0.90 | 0.90 |
 
 Zero-shot supera few-shot. La qualità degli esempi nel few-shot è determinante: esempi stereotipati introducono bias stilistici che penalizzano articoli ambigui.

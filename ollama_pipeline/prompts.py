@@ -27,6 +27,7 @@ FEW_SHOT_EXAMPLES = [
     ),
 ]
 
+# istruzione di base normalizzata per entrambi gli approcci (zero-shot e few-shot)
 _INSTRUCTION = (
     "Classify the following news article as FAKE or REAL.\n"
     "Answer with exactly one word: FAKE or REAL.\n"
@@ -35,10 +36,13 @@ _INSTRUCTION = (
 
 
 def zero_shot_prompt(text: str) -> str:
+    """costruisce il prompt per classificazione zero-shot senza esempi"""
     return f"{_INSTRUCTION}\n\nArticle: {text}\nLabel:"
 
 
 def few_shot_prompt(text: str) -> str:
+    """costruisce il prompt per classificazione few-shot con esempi in-context"""
+    # concatena gli esempi in un formato leggibile
     examples = "\n\n".join(
         f"Article: {article}\nLabel: {label}" for article, label in FEW_SHOT_EXAMPLES
     )
